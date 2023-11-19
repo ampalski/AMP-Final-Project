@@ -6,12 +6,13 @@ General flow:
 * Compare results... accuracy, delta-v, runtimes, etc.
 
 Data structures:
-* Graph holds which nodes are connected
-* 3x sparse array holds delta-v cost for edge costs
-* map? (int, int) -> (vector, vector, float)? to store dv1, dv2, T for connections
-* Map holds int -> vector{int} for which other nodes are in its neighborhood after pre-processing
-* Map holds sample locations (int, node number -> vector RIC/RICdot)
-* Simple array (vector) holds the Vector_open, Vector_unvisited, other sets. Just need to storey node number as int
+* Graph holds which nodes are connected (directed, so children are connections)
+* liveGraph holds connections as the planner makes them, directed
+* edgeCosts sparse array holds delta-v cost for edge costs
+* fullEdgeCosts dict (int, int) -> (vector, vector, float) to store dv1, dv2, T for connections ... 
+* Map holds int -> vector{int} for which other nodes are in its neighborhood after pre-processing -- hold off, I think the graph itself can do that
+* samples Dict holds sample locations (int, node number -> vector RIC/RICdot)
+* Simple array (vector) holds the Vertex_open, Vertex_unvisited, other sets. Just need to store node number as int -- implemented as sets for now for fast checking/insertion/deletion
 * Probably have a struct hold all the common features, separate structs for any technique specific data
 * Primary waypoint paths can just come back as matrices. But want the ability to get matrices for every path held in the graph for plotting
 
