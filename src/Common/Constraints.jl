@@ -37,6 +37,10 @@ function getBaseProblem()
     waypoints[:, 3] = [0.0, -1, 0, -2.8278424012935656e-5, -2.2225911392726972e-5, 0]
     waypoints[:, 4] = [-1.0, 0, 0, 4.4329795100374526e-5, 0.0001236164057455293, 0]
     waypoints[:, 5] = [0.0, 1, 0, 0, 0, 0]
+    # waypoints = zeros(6, 2)
+    # waypoints[:, 1] = [0.0, 1, 0, 0, 0, 0]
+    # waypoints[:, 2] = [1.0, 0, 0, -4.4329795100374526e-5, -0.0001236164057455293, 0]
+    # waypoints[:, 3] = [0.0, -1, 0, -2.8278424012935656e-5, -2.2225911392726972e-5, 0]
 
     centralDist = 0.1
 
@@ -76,7 +80,7 @@ function isFreeSample(
 
     if checkDynamic
         for i in 1:length(prob.coneKOZHalfAngle)
-            if angVec(sample[1:3], prob.coneKOZLOS[:, i]) < probl.coneKOZHalfAngle[i]
+            if angVec(sample[1:3], prob.coneKOZLOS[:, i]) < prob.coneKOZHalfAngle[i]
                 return false
             end
         end
@@ -92,7 +96,8 @@ function isFreePath(
     checkDynamic::Bool=false,
 )
     x = copy(sample)
-    phi = stm(1.0)
+    Δt = 0.01 * t
+    phi = stm(Δt)
     timeElapsed = 0.0
 
     while timeElapsed < t
@@ -100,7 +105,7 @@ function isFreePath(
             return false
         end
         x = phi * x
-        timeElapsed += 1
+        timeElapsed += Δt
     end
 
     phi = stm(t)

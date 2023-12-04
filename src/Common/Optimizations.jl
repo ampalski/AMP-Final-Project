@@ -85,3 +85,32 @@ function minTSteeringOpt(tbounds::Tuple{AbstractFloat,AbstractFloat}, x0::Abstra
     end
     return t
 end
+
+#Find the vector of Δvs to get from root to the specified node
+function findCombinedMnvs(problem::Problem, samplingstruct::SamplingMembers, node::Int)
+    dvs = Vector{Vector{Float64}}()
+    curNode = node
+    if isempty(inneighbors(samplingstruct.liveGraph, curNode))
+        return dvs
+    end
+
+    childNode = curNode
+    curNode = inneighbors(samplingstruct.liveGraph, curNode)[1]
+
+    while !isempty(inneighbors(samplingstruct.liveGraph, curNode))
+        parentNode = inneighbors(samplingstruct.liveGraph, curNode)[1]
+        postMnvState = samplingstruct.samples[curNode] +
+                       vcat(zeros(3), samplingstruct.fullEdgeCosts[(curNode, childNode)][1])
+        preMnvState = samplingstruct.samples[parentNode] +
+                      vcat(zeros(3), samplingstruct.fullEdgeCosts[(parentNode, curNode)][1])
+        preMnvState = HCW_Prop(preMnvState, samplingstruct.fullEdgeCosts[(parentNode, curNode)][3], problem.sma)
+
+        pushfirst!(dvs, @views(postMnvState[4:6] - preMnvState[4:6]))
+
+        childNode = curNode
+        curNode = parentNode
+    end
+
+    pushfirst!(dvs, samplingstruct.fullEdgeCosts[(curNode, childNode)][1])
+    return dvs
+end

@@ -18,3 +18,7 @@ Data structures:
 
 Things I need to figure out:
 * Linear programming. Make sure I can do the min-time solve for connecting two points, then the optimal unconstrained burn plan. If JuMP won't cooperate, need to write the shooting methods
+
+Ideas for paper:
+* Plot of # of nodes vs success rate for RRT. It seems like numNodes is currently a limiting factor, especially with goal bias set to 0.05
+* 2000 samples took 17746s to connect 26992.8
