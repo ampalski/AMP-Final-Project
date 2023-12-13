@@ -13,18 +13,6 @@ while q_goal not found:
 7) If (q_new-q_goal).norm() < epsilon, consider goal reached and return
 =#
 
-#cpp version has a "findclosestnode" which should already be DONE
-#and a "plan" function that did most of the work
-#may need some kind of solution struct.
-
-mutable struct RRTSoln
-    solnPath::AbstractMatrix
-    totΔv::Float64
-    times::AbstractVector
-    Δvs::AbstractMatrix
-    valid::Bool
-end
-
 function RRTPlan!(sampleStruct::SamplingMembers, soln::RRTSoln, problem::Problem)
     solnFound = false
     stepDone = false

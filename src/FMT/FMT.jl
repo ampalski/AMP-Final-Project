@@ -18,14 +18,6 @@
 17:     return Success, and the unique trajectory from the root (xinit) to z
 =#
 
-mutable struct FMTSoln
-    solnPath::AbstractMatrix
-    totΔv::Float64
-    times::AbstractVector
-    Δvs::AbstractMatrix
-    valid::Bool
-end
-
 function FMTPlan!(samplingstruct::SamplingMembers, soln::FMTSoln, problem::Problem)
     solnFound = false
     currentGoal = 2
@@ -45,15 +37,20 @@ function FMTPlan!(samplingstruct::SamplingMembers, soln::FMTSoln, problem::Probl
                     continue
                 end
                 cost = samplingstruct.edgeCosts[xtilde, x]
-                if cost < minCost
+                tempState = samplingstruct.samples[xtilde] + vcat(zeros(3), samplingstruct.fullEdgeCosts[(xtilde, x)][1])
+                if cost < minCost && isFreePath(problem, tempState, samplingstruct.fullEdgeCosts[(xtilde, x)][3], checkDynamic=true)
                     minCost = cost
                     minCostInd = xtilde
                 end
-                tempState = samplingstruct.samples[xtilde] + vcat(zeros(3), samplingstruct.fullEdgeCosts[(xtilde, x)][1])
-                if isFreePath(problem, tempState, samplingstruct.fullEdgeCosts[(xtilde, x)][3], checkDynamic=true)
-                    add_edge!(samplingstruct.liveGraph, xtilde, x)
-                    push!(samplingstruct.openVertex, x)
-                end
+                # tempState = samplingstruct.samples[xtilde] + vcat(zeros(3), samplingstruct.fullEdgeCosts[(xtilde, x)][1])
+                # if isFreePath(problem, tempState, samplingstruct.fullEdgeCosts[(xtilde, x)][3], checkDynamic=true)
+                #     add_edge!(samplingstruct.liveGraph, xtilde, x)
+                #     push!(samplingstruct.openVertex, x)
+                # end
+            end
+            if minCostInd != 0
+                add_edge!(samplingstruct.liveGraph, minCostInd, x)
+                push!(samplingstruct.openVertex, x)
             end
             delete!(samplingstruct.unvisitedVertex, x)
         end

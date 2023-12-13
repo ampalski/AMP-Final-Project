@@ -1,12 +1,21 @@
-function SteeringSoln(t::AbstractFloat, x0::AbstractVector, x1::AbstractVector)
-    if @views(x0[1:3] == x1[1:3])
+function SteeringSoln(t::AbstractFloat, x0::AbstractVector, x1::AbstractVector; sma::AbstractFloat=42164.15405)
+    if @views(x0[1:3] == x1[1:3]) || t == 0.0
         return vcat(zeros(3), x1[4:6] - x0[4:6])
     end
 
-    stmt = stm(t)
-    stm0 = stm(0.0)
+    stmt = stm(t; sma=sma)
+    stm0 = stm(0.0; sma=sma)
     phiv = hcat(stmt[:, 4:6], stm0[:, 4:6])
     right = x1 - stmt * x0
+
+    try
+        temp = phiv \ right
+    catch
+        display(t)
+        display(phiv)
+        display(right)
+    end
+
     return (phiv \ right)
 end
 
@@ -15,18 +24,19 @@ function minTSteeringLineSearch(
     updateSize::AbstractFloat,
     x0::AbstractVector,
     x1::AbstractVector,
-    tbounds::Tuple{AbstractFloat,AbstractFloat}
+    tbounds::Tuple{AbstractFloat,AbstractFloat};
+    sma::AbstractFloat=42164.15405,
 )
     alpha = 1.0
-    dv1 = SteeringSoln(t, x0, x1)
+    dv1 = SteeringSoln(t, x0, x1; sma=sma)
     baseline = norm(dv1[1:3]) + norm(dv1[4:6])
-    dv1 = SteeringSoln(t - alpha * updateSize, x0, x1)
+    dv1 = SteeringSoln(t - alpha * updateSize, x0, x1; sma=sma)
     tempUpdate = norm(dv1[1:3]) + norm(dv1[4:6])
     if tempUpdate > baseline
         alphascale = 0.8
         while tempUpdate > baseline
             alpha *= alphascale
-            dv1 = SteeringSoln(t - alpha * updateSize, x0, x1)
+            dv1 = SteeringSoln(t - alpha * updateSize, x0, x1; sma=sma)
             tempUpdate = norm(dv1[1:3]) + norm(dv1[4:6])
 
             if alpha < 0.0001
@@ -38,7 +48,7 @@ function minTSteeringLineSearch(
         oldUpdate = tempUpdate
         while true
             alpha *= 1.5
-            dv1 = SteeringSoln(t - alpha * updateSize, x0, x1)
+            dv1 = SteeringSoln(t - alpha * updateSize, x0, x1; sma=sma)
             tempUpdate = norm(dv1[1:3]) + norm(dv1[4:6])
             if tempUpdate > oldUpdate
                 alpha /= 1.5
@@ -56,7 +66,7 @@ function minTSteeringLineSearch(
 end
 
 
-function minTSteeringOpt(tbounds::Tuple{AbstractFloat,AbstractFloat}, x0::AbstractVector, x1::AbstractVector)
+function minTSteeringOpt(tbounds::Tuple{AbstractFloat,AbstractFloat}, x0::AbstractVector, x1::AbstractVector; sma::AbstractFloat=42164.15405)
     if @views(x0[1:3] == x1[1:3])
         return 0.0
     end
@@ -68,12 +78,12 @@ function minTSteeringOpt(tbounds::Tuple{AbstractFloat,AbstractFloat}, x0::Abstra
     δt = 1.0
     while abs(updateSize) > tol
         ktr += 1
-        dv1 = SteeringSoln(t, x0, x1)
+        dv1 = SteeringSoln(t, x0, x1; sma=sma)
         unperturbed = norm(dv1[1:3]) + norm(dv1[4:6])
-        dv1 = SteeringSoln(t + δt, x0, x1)
+        dv1 = SteeringSoln(t + δt, x0, x1; sma=sma)
         perturbed = norm(dv1[1:3]) + norm(dv1[4:6])
         updateSize = (perturbed - unperturbed) / δt
-        updateSize = minTSteeringLineSearch(t, updateSize, x0, x1, tbounds)
+        updateSize = minTSteeringLineSearch(t, updateSize, x0, x1, tbounds; sma=sma)
         t = t - updateSize
         if t < tbounds[1] || t > tbounds[2]
             t = clamp(t, tbounds[1], tbounds[2])
@@ -114,3 +124,60 @@ function findCombinedMnvs(problem::Problem, samplingstruct::SamplingMembers, nod
     pushfirst!(dvs, samplingstruct.fullEdgeCosts[(curNode, childNode)][1])
     return dvs
 end
+
+function recalcDV!(soln, prob::Problem)
+    total = 0.0
+    state = soln.solnPath[:, 1]
+    for i in 1:(size(soln.solnPath, 2)-1)
+        nextState = soln.solnPath[:, i+1]
+        dt = soln.times[i]
+        dv = SteeringSoln(dt, state, nextState, sma=prob.sma)[1:3]
+        state = state + vcat(zeros(3), dv)
+        state = HCW_Prop(state, dt, prob.sma)
+
+        soln.Δvs[:, i] = dv
+        total += norm(dv)
+    end
+
+    soln.totΔv = total
+end
+
+# Given the starting state, the problem waypoints, and the times of maneuvers,
+# find the fuel optimal maneuvers, not considering constraints 
+function minFuelPath(soln::Solution, prob::Problem)
+
+    tol = 1e-8
+    δΔv = 0.0001
+    allMnvs = copy(soln.Δvs)
+    problemWaypointInd = 2
+    curSolnInd = 1
+    dvStartInd = 1
+
+    #solve the optimal path segment by segment
+    while true
+        startWP = soln.solnPath[:, curSolnInd]
+        state = Vector{Float64}()
+        while @views(soln.solnPath[:, curSolnInd] != prob.waypoints[:, problemWaypointInd])
+            state = [state, soln.Δvs[:, curSolnInd]]
+            curSolnInd += 1
+        end
+
+        #Shooting method
+        ktr = 0
+        updateSize = 10000000000.0
+        while abs(updateSize) > tol && ktr < 1000
+            ktr += 1
+
+
+        end
+
+        problemWaypointInd += 1
+        if problemWaypointInd > size(prob.waypoints, 2)
+            break
+        end
+    end
+
+end
+#Need to add a flyout utils function, takes a starting state, times of burns and dvs, propagates out to end
+#then an error fn that does the flyout and computes an error vector of [total delta v, 
+#actual solution probably needs to analytically solve final dv to make sure waypoint is hit exactly

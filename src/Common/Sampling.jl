@@ -1,18 +1,6 @@
 # At least need a SampleFree(n) -- have sample free only check against static KOZs
 # Probably wouldn't hurt to have something that samples in a gaussian about a specific point with a specific covariance
 
-mutable struct SamplingMembers
-    feasGraph::Graphs.SimpleGraphs.AbstractSimpleGraph{Int64}
-    liveGraph::Graphs.SimpleGraphs.AbstractSimpleGraph{Int64}
-    edgeCosts::SparseArrays.AbstractSparseMatrixCSC{Float64,Int64}
-    fullEdgeCosts::Dict{Tuple{Int,Int},Tuple{Vector{Float64},Vector{Float64},Float64}}
-    samples::Dict{Int,Vector{Float64}}
-    openVertex::Set{Int} #Try these as sets, may need to change if re-ordering later
-    unvisitedVertex::Set{Int} #Maybe linkedlists.jl, if adding/subtracting is more important than checking if a member is present
-    closedVertex::Set{Int}
-    nodeInit::Int
-end
-
 function getEmptySampleStruct(prob::Problem, n::Int)
     samples = Dict{Int,Vector{Float64}}()
     nWPs = size(prob.waypoints, 2)

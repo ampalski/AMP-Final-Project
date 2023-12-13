@@ -3,14 +3,6 @@
 # DONE: instantaneous point check against those KOZs, ability to do static-only vs all KOZs
 # point to point check against those KOZs
 
-struct Problem
-    waypoints::AbstractMatrix{Float64}
-    centralKOZDist::Float64
-    coneKOZLOS::AbstractMatrix{Float64}
-    coneKOZHalfAngle::AbstractVector{Float64}
-    sma::Float64
-end
-
 function getRandCone(waypoints::AbstractMatrix)
     while true
         RA = rand() * 2 * pi
@@ -30,7 +22,7 @@ function getRandCone(waypoints::AbstractMatrix)
     end
 end
 
-function getBaseProblem()
+function getBaseProblem(; staticProb::Bool=true)
     waypoints = zeros(6, 5)
     waypoints[:, 1] = [0.0, 1, 0, 0, 0, 0]
     waypoints[:, 2] = [1.0, 0, 0, -4.4329795100374526e-5, -0.0001236164057455293, 0]
@@ -65,7 +57,11 @@ function getBaseProblem()
         coneKOZLOS[:, i], coneKOZHA[i] = getRandCone(waypoints)
     end
 
-    return Problem(waypoints, centralDist, coneKOZLOS, coneKOZHA, 42164.15405)
+    if staticProb
+        return StaticProblem(waypoints, centralDist, coneKOZLOS, coneKOZHA, 42164.15405)
+    else
+        return MutableProblem(waypoints, centralDist, coneKOZLOS, coneKOZHA, 42164.15405)
+    end
 end
 
 function isFreeSample(
@@ -112,4 +108,39 @@ function isFreePath(
 
     return isFreeSample(prob, phi * sample, checkDynamic=checkDynamic)
 
+end
+
+function randRotateProblem!(prob::MutableProblem)
+    # Rotate about a random primary axis by a small random amount
+
+    axis = rand(1:3)
+    angle = pi / 1800 * randn()
+    dcm = zeros(3, 3)
+    c = cos(angle)
+    s = sin(angle)
+    if axis == 1
+        dcm[1, 1] = 1.0
+        dcm[2, 2] = c
+        dcm[3, 3] = c
+        dcm[2, 3] = -s
+        dcm[3, 2] = s
+    elseif axis == 2
+        dcm[2, 2] = 1.0
+        dcm[1, 1] = c
+        dcm[3, 3] = c
+        dcm[3, 1] = -s
+        dcm[1, 3] = s
+    else
+        dcm[3, 3] = 1.0
+        dcm[2, 2] = c
+        dcm[1, 1] = c
+        dcm[1, 2] = -s
+        dcm[2, 1] = s
+    end
+
+    ind = 1
+    for vec in eachcol(prob.coneKOZLOS)
+        prob.coneKOZLOS[:, ind] = dcm * vec
+        ind += 1
+    end
 end
