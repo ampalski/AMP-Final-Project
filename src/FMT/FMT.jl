@@ -19,6 +19,11 @@
 =#
 
 function FMTPlan!(samplingstruct::SamplingMembers, soln::FMTSoln, problem::Problem)
+    # logfile = FormatLogger(open("log2.txt", "w")) do io, args
+    #     # Write the module, level and message only
+    #     println(io, args._module, " | ", "[", args.level, "] ", args.message)
+    # end
+
     solnFound = false
     currentGoal = 2
     totalGoal = size(problem.waypoints, 2)
@@ -26,6 +31,9 @@ function FMTPlan!(samplingstruct::SamplingMembers, soln::FMTSoln, problem::Probl
     curNodeInit = samplingstruct.nodeInit
     while !solnFound
         #display(length(outneighbors(samplingstruct.feasGraph, minCostNode)))
+        # with_logger(logfile) do
+        #     @debug @sprintf("Searching outneighbors of %d", minCostNode)
+        # end
         for x in outneighbors(samplingstruct.feasGraph, minCostNode)
             if !(x in samplingstruct.unvisitedVertex)
                 continue
@@ -48,12 +56,16 @@ function FMTPlan!(samplingstruct::SamplingMembers, soln::FMTSoln, problem::Probl
                 #     push!(samplingstruct.openVertex, x)
                 # end
             end
+
             if minCostInd != 0
                 add_edge!(samplingstruct.liveGraph, minCostInd, x)
                 push!(samplingstruct.openVertex, x)
             end
             delete!(samplingstruct.unvisitedVertex, x)
         end
+        # with_logger(logfile) do
+        #     @debug @sprintf("Done")
+        # end
         delete!(samplingstruct.openVertex, minCostNode)
         push!(samplingstruct.closedVertex, minCostNode)
         if isempty(samplingstruct.openVertex)
@@ -63,7 +75,13 @@ function FMTPlan!(samplingstruct::SamplingMembers, soln::FMTSoln, problem::Probl
         mindv = 9999999
         mindvInd = 0
         for z in samplingstruct.openVertex
+            # with_logger(logfile) do
+            #     @debug @sprintf("Finding total dv for %d", z)
+            # end
             dvs = findCombinedMnvs(problem, samplingstruct, z)
+            # with_logger(logfile) do
+            #     @debug @sprintf("Done")
+            # end
             dv = sum(norm.(dvs))
             if dv < mindv
                 mindv = dv
@@ -75,6 +93,9 @@ function FMTPlan!(samplingstruct::SamplingMembers, soln::FMTSoln, problem::Probl
         #display(minCostNode)
         # Check for goal
         if @views(norm(samplingstruct.samples[minCostNode][1:3] - problem.waypoints[1:3, currentGoal])) < 0.01
+            # with_logger(logfile) do
+            #     @debug @sprintf("Building output for %d", minCostNode)
+            # end
             currentGoal += 1
             empty!(samplingstruct.openVertex)
             push!(samplingstruct.openVertex, minCostNode)
@@ -110,7 +131,9 @@ function FMTPlan!(samplingstruct::SamplingMembers, soln::FMTSoln, problem::Probl
                 times[i] = samplingstruct.fullEdgeCosts[(nodePath[i], nodePath[i+1])][3]
                 totΔv += norm(Δvs[i])
             end
-
+            # with_logger(logfile) do
+            #     @debug @sprintf("Saving")
+            # end
             # Save output
             if curNodeInit == samplingstruct.nodeInit #first time through
                 soln.solnPath = solnPath
@@ -131,7 +154,9 @@ function FMTPlan!(samplingstruct::SamplingMembers, soln::FMTSoln, problem::Probl
                 soln.totΔv += totΔv
                 soln.Δvs = hcat(soln.Δvs, Δvs2)
             end
-
+            # with_logger(logfile) do
+            #     @debug @sprintf("Resetting graphs")
+            # end
             n = nv(samplingstruct.liveGraph)
             samplingstruct.liveGraph = SimpleDiGraph(n)
             for i in 1:n

@@ -4,7 +4,7 @@ samplingstruct = SampleFree(prob, 2000)
 findAllNeighbors!(samplingstruct, prob, 0.001, 10800.0)
 timer = time() - timer
 
-using JLD2
+
 a = load("n2000Connections.jld2")
 prob = getBaseProblem()
 samplingstruct = a["samplingstruct"]
@@ -58,3 +58,16 @@ times, Δvs, successes, tof = runFMT(100)
 jldsave("FMTNoPost.jld2"; times, Δvs, successes, tof)
 times, Δvs, successes, tof = runFMT(100; postProcess=true)
 jldsave("FMTWiPost.jld2"; times, Δvs, successes, tof)
+
+a = load("RRTNoPost.jld2")
+b = load("RRTWiPost.jld2")
+c = load("FMTNoPost.jld2")
+d = load("FMTWiPost.jld2")
+
+a = load("RRTReRun600.jld2")
+b = load("RRTReRun1000.jld2")
+c = load("RRTReRun3600.jld2")
+
+a = load("FMTReRun600.jld2")
+b = load("FMTReRun1000.jld2")
+c = load("FMTReRun3600.jld2")

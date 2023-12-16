@@ -1,4 +1,4 @@
-using GLMakie
+
 crossMatrix(x, y, z) = [0 -z y; z 0 -x; -y x 0]
 function plotRRT(
     prob::Problem,
@@ -266,6 +266,63 @@ function plotPostProcessed(
             lines!(ax, helper[1, :], helper[2, :], helper[3, :]; color=:blue, linewidth=5.0)
         end
     end
+
+    xlims!(ax, -2.0, 2.0)
+    ylims!(ax, -2.0, 2.0)
+    zlims!(ax, -2.0, 2.0)
+    fig
+
+end
+
+function plotOnline(
+    prob::Problem,
+    path::AbstractMatrix,
+)
+    set_theme!(theme_black())
+    fig = Figure(resolution=(1600, 800))
+
+    ax = Axis3(fig[1, 1])
+    ax.xlabel = "Radial (km)"
+    ax.ylabel = "In-Track (km)"
+    ax.zlabel = "Cross-Track (km)"
+    # Plot the KOZs
+    waypoints = scatter!(ax, prob.waypoints[1, :], prob.waypoints[2, :], prob.waypoints[3, :], color=:blue, label="Waypoints")
+    centralSphere = wireframe!(ax, Sphere(Point3(0.0), prob.centralKOZDist); color=(:white, 0.2))
+
+    n1 = [0, 0, 1.0]
+    for coneInd in 1:length(prob.coneKOZHalfAngle)
+        dir = prob.coneKOZLOS[:, coneInd]
+        halfAng = prob.coneKOZHalfAngle[coneInd]
+        dir ./= norm(dir)
+        n2 = cross(n1, dir)
+        n2 ./= norm(n2)
+        rot = acos(dot(dir, n1))
+        R = cos(rot) * I(3) + sin(rot) * crossMatrix(n2[1], n2[2], n2[3]) + (1 - cos(rot)) * (n2 * n2')
+        radius = tan(halfAng)
+
+        h = 1.5
+        u = LinRange(0, h, 25)
+        θ = LinRange(0, 2 * pi, 25)
+        x = [u * radius * cos(θ) for u in u, θ in θ]
+        y = [u * radius * sin(θ) for u in u, θ in θ]
+        z = [u for u in u, θ in θ]
+
+        for i in 1:25
+            for j in 1:25
+                temp = [x[i, j], y[i, j], z[i, j]]
+                temp = R * temp
+                x[i, j] = temp[1]
+                y[i, j] = temp[2]
+                z[i, j] = temp[3]
+            end
+        end
+
+        wireframe!(ax, x, y, z; color=(:white, 0.2))
+        #surface!(ax, x, y, z; colormap=:bone_1)
+    end
+
+    #Plot the solution path
+    lines!(ax, path[1, :], path[2, :], path[3, :]; color=:green, linewidth=2.0)
 
     xlims!(ax, -2.0, 2.0)
     ylims!(ax, -2.0, 2.0)

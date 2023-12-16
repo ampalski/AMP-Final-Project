@@ -107,8 +107,17 @@ function findCombinedMnvs(problem::Problem, samplingstruct::SamplingMembers, nod
     childNode = curNode
     curNode = inneighbors(samplingstruct.liveGraph, curNode)[1]
 
+    temp = [childNode, curNode]
+
     while !isempty(inneighbors(samplingstruct.liveGraph, curNode))
         parentNode = inneighbors(samplingstruct.liveGraph, curNode)[1]
+
+        if parentNode in temp
+            display(temp)
+        else
+            push!(temp, parentNode)
+        end
+
         postMnvState = samplingstruct.samples[curNode] +
                        vcat(zeros(3), samplingstruct.fullEdgeCosts[(curNode, childNode)][1])
         preMnvState = samplingstruct.samples[parentNode] +

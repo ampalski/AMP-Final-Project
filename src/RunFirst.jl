@@ -3,6 +3,8 @@ using Graphs
 using SparseArrays
 using HaltonSequences
 using Logging, LoggingExtras, Printf
+using GLMakie
+using JLD2
 
 include("Common/TypeDefs.jl")
 include("RPO/RelativeOrbits.jl")

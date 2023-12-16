@@ -138,3 +138,59 @@ function findClosestNode(
     end
     return lowestKey
 end
+
+function addOnlineNode!(
+    samplingstruct::SamplingMembers,
+    sample::Vector{Float64},
+    dvMax::Float64,
+    tof::Float64,
+)
+    # Change the node at nodeInit, need to change feasGraph,
+    # samples, edgeCosts, and fullEdgeCosts
+
+    # In feasGraph, need to clear out all edges
+    while length(inneighbors(samplingstruct.feasGraph, samplingstruct.nodeInit)) > 0
+        rem_edge!(samplingstruct.feasGraph, inneighbors(samplingstruct.feasGraph,
+                samplingstruct.nodeInit)[1], samplingstruct.nodeInit)
+    end
+    while length(outneighbors(samplingstruct.feasGraph, samplingstruct.nodeInit)) > 0
+        rem_edge!(samplingstruct.feasGraph, samplingstruct.nodeInit,
+            outneighbors(samplingstruct.feasGraph, samplingstruct.nodeInit)[1])
+    end
+
+    samplingstruct.samples[samplingstruct.nodeInit] = sample
+
+    # Look for and make connections
+    n = length(samplingstruct.samples)
+
+    for i in 1:n
+        i == samplingstruct.nodeInit && continue
+
+        dvs = SteeringSoln(tof, samplingstruct.samples[i], sample)
+        dv = @views(norm(dvs[1:3]) + norm(dvs[4:6]))
+
+        if dv < dvMax
+            add_edge!(samplingstruct.feasGraph, i, samplingstruct.nodeInit)
+            samplingstruct.edgeCosts[i, samplingstruct.nodeInit] = dv
+            samplingstruct.fullEdgeCosts[(i, samplingstruct.nodeInit)] = (dvs[1:3], dvs[4:6], tof)
+        end
+    end
+    usedv = dvMax
+    usetof = tof
+    while isempty(outneighbors(samplingstruct.feasGraph, samplingstruct.nodeInit))
+        for i in 1:n
+            i == samplingstruct.nodeInit && continue
+            dvs = SteeringSoln(usetof, sample, samplingstruct.samples[i])
+            dv = @views(norm(dvs[1:3]) + norm(dvs[4:6]))
+
+            if dv < usedv
+                add_edge!(samplingstruct.feasGraph, samplingstruct.nodeInit, i)
+                samplingstruct.edgeCosts[samplingstruct.nodeInit, i] = dv
+                samplingstruct.fullEdgeCosts[(samplingstruct.nodeInit, i)] = (dvs[1:3], dvs[4:6], tof)
+            end
+        end
+        usedv *= 2
+        usetof *= 2
+    end
+
+end
